@@ -8,7 +8,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-ADDRESS = '4679 Centretown Way, Mississuaga, Ontario, L5R 0E1, Canada'
+ADDRESS = '<Insert address>'
 YEAR = '2021'
 MONTH = '03'
 
