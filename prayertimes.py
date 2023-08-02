@@ -75,14 +75,14 @@ def get_prayer_times():
                 Dhuhr.get_calendar_event_batch(), 
                 Asr.get_calendar_event_batch(), 
                 Magrib.get_calendar_event_batch(), 
-                Isha.get_calendar_event_batch]
+                Isha.get_calendar_event_batch()]
 
     return prayers
 
 
 def add_events(calendar_service, all_event_parameters):
     for prayer in all_event_parameters:
-        for item in prayer: # to do - error in last event (isha) of last day
+        for item in prayer:
             #print(item)
             event = calendar_service.events().insert(calendarId='primary', body=item).execute()
     print(f'{event} has been added successfully!')
