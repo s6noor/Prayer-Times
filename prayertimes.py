@@ -1,3 +1,5 @@
+# Author: Sidrah Noor
+# This code is the property of Sidrah Noor.
 import requests
 import os
 import json
@@ -8,10 +10,11 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-ADDRESS = '<Insert address>'
+ADDRESS = '<Insert address>' #insert address for the location for which you require prayer times
 YEAR = '2021'
 MONTH = '03'
-
+CALENDAR_NAME = "Prayer"
+TIMEZONE = "America/New_York" #to-do - automate the change between daylight savings versus not. Also, Timezone must follow IANA
 
 class Prayer():
     def __init__(self, api_output, name, alternative_name=None):
@@ -43,11 +46,11 @@ class Prayer():
                 'summary': self.name,
                 'start': {
                     'dateTime': self.get_dateTime(each_day)[0],
-                    'timeZone': 'EST'
+                    'timeZone': TIMEZONE
                 },
                 'end': {
                     'dateTime': self.get_dateTime(each_day)[1],
-                    'timeZone': 'EST'
+                    'timeZone': TIMEZONE
                 }
             })
         
@@ -64,14 +67,14 @@ def get_prayer_times():
     all_info = response.json()
 
     Fajr = Prayer(all_info, 'Fajr')
-    Sunrise = Prayer(all_info, 'Sunrise')
+    #Sunrise = Prayer(all_info, 'Sunrise')
     Dhuhr = Prayer(all_info, 'Dhuhr')
     Asr = Prayer(all_info, 'Asr')
     Magrib = Prayer(all_info, 'Magrib', alternative_name='Maghrib')
     Isha = Prayer(all_info, 'Isha')
 
     prayers = [Fajr.get_calendar_event_batch(), 
-                Sunrise.get_calendar_event_batch(), 
+                #Sunrise.get_calendar_event_batch(), 
                 Dhuhr.get_calendar_event_batch(), 
                 Asr.get_calendar_event_batch(), 
                 Magrib.get_calendar_event_batch(), 
@@ -80,18 +83,43 @@ def get_prayer_times():
     return prayers
 
 
-def add_events(calendar_service, all_event_parameters):
+def add_events(calendar_service, all_event_parameters, calendar_id= 'primary'):
     for prayer in all_event_parameters:
         for item in prayer:
             #print(item)
-            event = calendar_service.events().insert(calendarId='primary', body=item).execute()
+            event = calendar_service.events().insert(calendarId= calendar_id, body=item).execute()
     print(f'{event} has been added successfully!')
+
+def create_new_calendar(calendar_service):
+    #this creates a calendar called Prayer in the specified time zone
+    calendar = {
+        "summary": CALENDAR_NAME,
+        'timeZone': TIMEZONE
+    }
+    try:
+        created_calendar = calendar_service.calendars().insert(body=calendar).execute()
+        return created_calendar['id']
+    except:
+        print("An error occured") #ideally you want to print the exact nature of the error using googleapi for http error. Future to-do
+
+#Source: ChatGPT; doing some error handling here to make sure that new calendars are only created if one doesnt already exist.
+def find_calendar_by_name(service, target_name):
+    page_token = None
+    while True:
+        calendar_list = service.calendarList().list(pageToken=page_token).execute()
+        for calendar in calendar_list.get('items', []):
+            if calendar['summary'] == target_name:
+                print(f'Found existing calendar with calendarId: {calendar["id"]}')
+                return calendar['id']
+        page_token = calendar_list.get('nextPageToken')
+        if not page_token:
+            break
+    return None
 
 def main():
     creds = None
     # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
+    # created automatically when the authorization flow completes for the first time.
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
 
@@ -109,7 +137,11 @@ def main():
             token.write(creds.to_json())
 
     service = build('calendar', 'v3', credentials=creds)
-
-    add_events(service, get_prayer_times())
+    # Check if the calendar already exists
+    prayer_calendar_id = find_calendar_by_name(service, CALENDAR_NAME)
+    if not prayer_calendar_id:
+        # If the calendar doesn't exist, create a new one
+        prayer_calendar_id = create_new_calendar(service)
+    add_events(service, get_prayer_times(), prayer_calendar_id)
 
 main()
